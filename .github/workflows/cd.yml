@@ -1,0 +1,46 @@
+# NOTA OPERACIONAL: a cota de GitHub Actions da organizacao esta esgotada e as
+# credenciais do AWS Academy sao rotativas (expiram a cada sessao do laboratorio).
+# Antes de cada deploy, atualize os secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
+# AWS_SESSION_TOKEN. Runbook completo: aws-academy-setup.md no repo
+# postech-sw-arch-p3-docs.
+name: CD
+
+on:
+  push:
+    branches: [main, homolog]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_VAR_jwt_secret: ${{ secrets.TF_VAR_JWT_SECRET }}
+      TF_VAR_encryption_key: ${{ secrets.TF_VAR_ENCRYPTION_KEY }}
+      TF_VAR_database_url: ${{ secrets.TF_VAR_DATABASE_URL }}
+      # No CI as credenciais vem do ambiente, nao de profile local.
+      TF_VAR_aws_profile: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Empacotar lambda (deps + src)
+        run: make build
+
+      - name: Terraform init
+        run: terraform -chdir=terraform init -input=false
+
+      - name: Selecionar workspace pelo branch (homolog -> homolog, main -> prod)
+        run: |
+          WS=$([ "${GITHUB_REF_NAME}" = "main" ] && echo prod || echo homolog)
+          terraform -chdir=terraform workspace select -or-create "$WS"
+
+      - name: Terraform apply
+        run: terraform -chdir=terraform apply -input=false -auto-approve

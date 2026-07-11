@@ -1,0 +1,40 @@
+# ATENCAO: este template SAM existe APENAS para emulacao local e documentacao
+# (`sam local start-api` / `sam local invoke`) -- ADR-029. O deploy real e feito
+# exclusivamente pelo Terraform em terraform/ (API Gateway HTTP API + Lambda).
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Emulacao local da autenticacao por CPF (PytStop, fase 3)
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        # Valores de desenvolvimento local; sobrescreva com --env-vars env.json.
+        DATABASE_URL: postgresql://pytstop:pytstop@host.docker.internal:5432/pytstop
+        JWT_SECRET: dev-local-jwt-secret
+        ENCRYPTION_KEY: dev-local-encryption-key
+        JWT_EXPIRATION_MINUTES: "30"
+
+Resources:
+  AutenticacaoCpfFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pytstop-autenticacao-cpf
+      CodeUri: .
+      Handler: src.autenticacao_cpf.handler.lambda_handler
+      Events:
+        Auth:
+          Type: HttpApi
+          Properties:
+            Path: /auth
+            Method: post
+
+  AutorizadorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pytstop-autenticacao-authorizer
+      CodeUri: .
+      Handler: src.autenticacao_cpf.authorizer.lambda_handler

@@ -1,0 +1,49 @@
+[project]
+name = "autenticacao-cpf"
+version = "0.1.0"
+description = "Function serverless de autenticacao por CPF (PytStop, Tech Challenge fase 3)"
+requires-python = ">=3.13"
+dependencies = [
+    "pyjwt>=2.9",
+    "psycopg[binary]>=3.2",
+    "brutils>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "testcontainers[postgres]>=4.8",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "bandit[toml]>=1.8",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["brutils.*", "testcontainers.*"]
+ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = ["integration: exige Docker (testcontainers); fora do gate default"]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true

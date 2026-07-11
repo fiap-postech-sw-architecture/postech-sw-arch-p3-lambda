@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, homolog]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar dependencias
+        run: uv sync
+
+      - name: Lint (ruff check + format)
+        run: make lint
+
+      - name: Typecheck (mypy strict)
+        run: make typecheck
+
+      - name: Security (bandit)
+        run: make security
+
+      - name: Testes com cobertura (>= 95%)
+        run: make test
+
+  tf-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt + validate
+        run: make tf-validate
