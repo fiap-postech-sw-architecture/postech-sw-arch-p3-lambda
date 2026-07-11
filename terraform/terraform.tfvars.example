@@ -1,0 +1,14 @@
+# Copie para terraform.tfvars (git-ignored) e preencha antes do apply.
+# Os tres segredos abaixo sao obrigatorios e NUNCA vao para o git —
+# no CI eles chegam via GitHub Secrets/TF_VAR_* (ADR-033).
+
+# aws_profile  = "academy"
+
+# Mesmo segredo JWT do app (Secret K8s jwt-secret) — emissor unico por publico (ADR-028):
+jwt_secret = "troque-este-segredo"
+
+# Mesma ENCRYPTION_KEY do app (paridade do documento_hash):
+encryption_key = "troque-esta-chave-fernet"
+
+# Endpoint do RDS provisionado pelo repo postech-sw-arch-p3-infra-db:
+database_url = "postgresql://pytstop:SENHA@ENDPOINT:5432/pytstop"
