@@ -88,7 +88,7 @@ O CD (`.github/workflows/cd.yml`) roda `make check` (gate — único freio, já 
 |---|---|---|
 | POST | `/auth` | `{"cpf": "..."}` → `200 {access_token, token_type, expires_in}` \| `400` CPF malformado \| `401` credenciais inválidas |
 
-Documentação completa (Swagger/Postman): ver o repo principal [postech-sw-arch-p3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3) (placeholder — collection será publicada junto com a entrega da fase 3).
+Documentação completa (Swagger/Postman): [collection Postman da fase 3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/postman-collection-fase3.json) (inclui esta rota `POST /auth` com a variável `gateway_url`) e [OpenAPI da API principal](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/openapi-fase3.json).
 
 ## Status e pendências
 
