@@ -55,16 +55,25 @@ Fluxo completo CPF→JWT→API sem AWS, com o app do repo principal rodando no k
 ```bash
 # 1. App + banco no kind (repo postech-sw-arch-p3):
 #    make cd-local  — sobe cluster, banco, API e monitoramento.
-# 2. Exponha o Postgres do cluster para a lambda local:
-kubectl --context kind-pytstop -n pytstop-infra port-forward svc/postgres 5432:5432 &
-# 3. Emule a lambda apontando para o MESMO banco e segredos do app
-#    (JWT_SECRET/ENCRYPTION_KEY dos Secrets de demo em k8s/secret.yaml):
+# 2. Exponha o Postgres do cluster para a lambda local (15432 evita colisão
+#    com um Postgres local ou do compose da fase 2 em 5432):
+kubectl --context kind-pytstop -n pytstop-infra port-forward svc/postgres 15432:5432 &
+# 3. Env de demo da lambda (mesmos JWT_SECRET/ENCRYPTION_KEY dos Secrets de
+#    demo do app em k8s/secret.yaml):
+cp env.json.example env.json
+# 4. Emule gateway + function apontando para o MESMO banco e segredos do app
+#    (o alvo roda `make build` antes — o template usa deps de build/lambda):
 make sam-local     # POST http://localhost:3000/auth {"cpf": "<cpf de cliente semeado>"}
-# 4. Consuma a API do app com o token emitido:
+# 5. Consuma a API do app com o token emitido:
 #    curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/...
 ```
 
-Paridade parcial documentada (RFC-003 §3): o roteamento gateway→app e o authorizer não existem localmente — o app valida o JWT com o mesmo segredo (validação redundante do ADR-027). Rotas de papel `cliente` entram na Onda 3/4.
+> **Nota (demo only)**: os valores de `env.json.example` são os segredos de
+> demonstração PÚBLICOS do app (`k8s/secret.yaml` do repo principal, marcados
+> `gitleaks:allow` lá) — nunca valores reais. `env.json` está no `.gitignore`
+> para o caso de alguém trocar por valores próprios.
+
+Paridade parcial documentada (RFC-003 §3): o roteamento gateway→app não existe localmente — o app valida o JWT com o mesmo segredo (validação redundante do ADR-027). O authorizer É emulado pelo SAM: a rota de exemplo `GET /auth/exemplo-protegido` exige Bearer JWT (401 sem token). Rotas de papel `cliente` entram na Onda 3/4.
 
 ## Deploy (Terraform + AWS Academy)
 

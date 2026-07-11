@@ -21,3 +21,4 @@ crash.log
 
 # SAM
 .aws-sam/
+env.json

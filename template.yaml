@@ -8,7 +8,14 @@ Description: Emulacao local da autenticacao por CPF (PytStop, fase 3)
 Globals:
   Function:
     Runtime: python3.13
-    Timeout: 10
+    # 30s SO na emulacao local: cold start sob emulacao x86 no Mac ARM leva ~12s
+    # e estourava o default (502). O timeout REAL de producao e o do Terraform
+    # (main.tf: 10s auth / 5s authorizer) — este arquivo nao provisiona nada (ADR-029).
+    Timeout: 30
+    # Arch NATIVA p/ emulacao neste host (Mac ARM): x86 sob qemu crasha o
+    # runtime local intermitentemente. Producao e x86_64 via Terraform (ADR-029).
+    # Em host x86, troque para x86_64 (e o build-local segue o uname).
+    Architectures: [arm64]
     MemorySize: 256
     Environment:
       Variables:
@@ -19,22 +26,52 @@ Globals:
         JWT_EXPIRATION_MINUTES: "30"
 
 Resources:
+  # HttpApi explicito: eventos implicitos nao aceitam Lambda authorizer.
+  # Espelha o Terraform (terraform/main.tf): authorizer payload v2 simple
+  # response + rota protegida de exemplo; /auth continua publica (sem
+  # DefaultAuthorizer, rotas sem Auth ficam abertas).
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          LambdaAuthorizer:
+            AuthorizerPayloadFormatVersion: "2.0"
+            EnableSimpleResponses: true
+            FunctionArn: !GetAtt AutorizadorFunction.Arn
+            Identity:
+              Headers:
+                - Authorization
+
   AutenticacaoCpfFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: pytstop-autenticacao-cpf
-      CodeUri: .
+      # Deps vendorizadas pelo `make build` (o Handler resolve porque o build
+      # copia src/ para build/lambda/src).
+      CodeUri: build/lambda-local
       Handler: src.autenticacao_cpf.handler.lambda_handler
       Events:
         Auth:
           Type: HttpApi
           Properties:
+            ApiId: !Ref Api
             Path: /auth
             Method: post
+        # Como no Terraform, a rota de exemplo reusa a integracao da lambda
+        # apenas para demonstrar o authorizer (integracao final = app no EKS).
+        ExemploProtegido:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /auth/exemplo-protegido
+            Method: get
+            Auth:
+              Authorizer: LambdaAuthorizer
 
   AutorizadorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: pytstop-autenticacao-authorizer
-      CodeUri: .
+      CodeUri: build/lambda-local
       Handler: src.autenticacao_cpf.authorizer.lambda_handler
