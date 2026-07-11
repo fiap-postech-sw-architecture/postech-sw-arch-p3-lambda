@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
+import logging
 from typing import Any
 
 import pytest
 
-from src.autenticacao_cpf import db, handler
+from src.autenticacao_cpf import db, handler, logging_json
 
 CPF_VALIDO = "529.982.247-25"
 
@@ -67,6 +69,19 @@ def test_400_corpo_invalido(body: str | None) -> None:
     assert resposta["statusCode"] == 400
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        base64.b64encode(b"\xff\xfe{").decode(),  # decodifica, mas nao e UTF-8
+        "%%%nao-e-base64%%%",  # base64 invalido (binascii.Error)
+    ],
+)
+def test_400_base64_invalido(body: str) -> None:
+    # Borda de parse inteira dentro do try: entrada malformada e 400, nunca 500.
+    resposta = handler.lambda_handler(_evento(body, base64_encoded=True), None)
+    assert resposta["statusCode"] == 400
+
+
 def test_body_base64(monkeypatch: pytest.MonkeyPatch) -> None:
     _mock_cliente(monkeypatch, db.Cliente(id="abc-1", contato="c@e.com", ativo=True))
     body = base64.b64encode(json.dumps({"cpf": CPF_VALIDO}).encode()).decode()
@@ -79,6 +94,7 @@ def test_401_cliente_inexistente(monkeypatch: pytest.MonkeyPatch) -> None:
     resposta = handler.lambda_handler(_evento(json.dumps({"cpf": CPF_VALIDO})), None)
     assert resposta["statusCode"] == 401
     assert _corpo(resposta)["detail"] == "Credenciais invalidas"
+    assert resposta["headers"]["WWW-Authenticate"] == "Bearer"
 
 
 def test_401_cliente_inativo_mesma_resposta_anti_enumeracao(
@@ -93,3 +109,25 @@ def test_401_cliente_inativo_mesma_resposta_anti_enumeracao(
     # Mesma resposta byte a byte: nao vaza se o cliente existe.
     assert inativo == inexistente
     assert inativo["statusCode"] == 401
+
+
+def test_log_json_com_request_id_e_sem_cpf(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RNF-029: linha de log e JSON parseavel, carrega request_id e NUNCA o CPF."""
+    _mock_cliente(monkeypatch, None)
+    buf = io.StringIO()
+    captura = logging.StreamHandler(buf)
+    captura.setFormatter(logging_json.JsonFormatter())
+    handler._logger.addHandler(captura)
+    try:
+        evento = _evento(json.dumps({"cpf": CPF_VALIDO}))
+        evento["requestContext"] = {"requestId": "req-123"}
+        handler.lambda_handler(evento, None)
+    finally:
+        handler._logger.removeHandler(captura)
+
+    saida = buf.getvalue()
+    linha = json.loads(saida.strip())
+    assert linha["level"] == "INFO"
+    assert linha["request_id"] == "req-123"
+    assert CPF_VALIDO not in saida
+    assert "52998224725" not in saida  # nem o CPF normalizado

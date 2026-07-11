@@ -10,7 +10,25 @@ on:
     branches: [main, homolog]
 
 jobs:
+  # Sem branch protection (org free + repo privado), este gate e o UNICO freio
+  # antes do deploy: push direto em main/homolog so aplica se o check passar.
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar dependencias
+        run: uv sync
+
+      - name: Gate (lint + typecheck + security + testes >= 95%)
+        run: make check
+
   deploy:
+    needs: gate
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -37,10 +55,18 @@ jobs:
       - name: Terraform init
         run: terraform -chdir=terraform init -input=false
 
-      - name: Selecionar workspace pelo branch (homolog -> homolog, main -> prod)
-        run: |
-          WS=$([ "${GITHUB_REF_NAME}" = "main" ] && echo prod || echo homolog)
-          terraform -chdir=terraform workspace select -or-create "$WS"
-
+      # SEM workspaces, um unico state: os stages homolog e prod ja existem na
+      # MESMA HTTP API (terraform/main.tf) e as functions tem function_name
+      # fixo -- um workspace por branch tentaria criar uma segunda Lambda com
+      # o mesmo nome (ResourceConflictException). Push em homolog ou em main
+      # aplica o MESMO terraform (as duas stages sobem juntas); o que muda por
+      # branch e apenas qual stage o summary/smoke referencia.
       - name: Terraform apply
         run: terraform -chdir=terraform apply -input=false -auto-approve
+
+      - name: Resumo do deploy (stage do branch)
+        run: |
+          STAGE=$([ "${GITHUB_REF_NAME}" = "main" ] && echo prod || echo homolog)
+          URL=$(terraform -chdir=terraform output -raw "auth_url_${STAGE}")
+          echo "Deploy aplicado (stages homolog e prod). Stage deste branch: ${STAGE}" >> "$GITHUB_STEP_SUMMARY"
+          echo "POST /auth: ${URL}" >> "$GITHUB_STEP_SUMMARY"

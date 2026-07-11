@@ -8,6 +8,7 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Recent decisions
 
+- 2026-07-11 - CD sem workspaces Terraform: um unico state, stages homolog/prod na MESMA HTTP API (function_name fixo - workspace por branch criaria segunda Lambda com o mesmo nome, ResourceConflictException); gate (make check) roda no proprio cd.yml antes do deploy - unico freio, org free nao tem branch protection
 - 2026-07-11 - Bootstrap da fase 3: function serverless de autenticacao por CPF (Lambda python3.13 + API GW HTTP API + authorizer); ADRs 026-029 vivem no repo postech-sw-arch-p3 - Terraform da function/gateway vive NESTE repo; SAM e so emulacao local (ADR-029)
 
 ## Discovered conventions
@@ -24,3 +25,5 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 - 2026-07-11 - MEDIUM - rota protegida do gateway e exemplo apontando para a propria lambda; integrar HTTP_PROXY com o app no EKS quando o endpoint existir
 
 ## Review lessons
+
+- 2026-07-11 - Decode base64/UTF-8 do corpo fora do try do parse virou 500 acionavel (payload malformado derrubava o handler) - borda de parse SEMPRE inteira dentro do try (base64 -> UTF-8 -> JSON), capturando binascii.Error/UnicodeDecodeError/JSONDecodeError -> 400

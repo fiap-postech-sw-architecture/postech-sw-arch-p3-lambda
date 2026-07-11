@@ -2,7 +2,7 @@
 
 Function serverless de autenticação da fase 3 do Tech Challenge (PytStop, oficina mecânica). O cliente informa o CPF; a function valida o formato, verifica existência e status na base do app e emite um JWT compatível com o app principal ([postech-sw-arch-p3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3)).
 
-Decisões de arquitetura: ADRs 026–029 no repo principal (`postech-sw-arch-p3/docs/adr/`).
+Decisões de arquitetura: ADRs 026–029 no repo principal (`postech-sw-arch-p3/docs/arquitetura/adr/fase3/`).
 
 ## Tecnologias
 
@@ -12,6 +12,7 @@ Decisões de arquitetura: ADRs 026–029 no repo principal (`postech-sw-arch-p3/
 - **Terraform** (deploy real — a IaC da function e do gateway vive NESTE repo)
 - **AWS SAM CLI** (apenas emulação local, ADR-029)
 - Qualidade: ruff, mypy (strict), bandit, pytest com cobertura ≥ 95%, testcontainers
+- Dockerfile: n/a — deploy é pacote zip via Terraform (ADR-029), sem imagem de container
 
 ## Arquitetura
 
@@ -73,12 +74,13 @@ Restrições do AWS Academy: sem criação de recursos IAM (usa a role `LabRole`
 make build                             # empacota deps (wheels linux) + src em build/lambda/
 cd terraform
 terraform init
-terraform workspace select -or-create homolog   # ou prod
 terraform apply \
   -var jwt_secret=... -var encryption_key=... -var database_url=...
 ```
 
-O CD (`.github/workflows/cd.yml`) faz o mesmo em push para `homolog` (stage homolog) e `main` (stage prod) — ver nota sobre cota/credenciais no topo do arquivo e o runbook `aws-academy-setup.md` no repo `postech-sw-arch-p3-docs`.
+Um único state, **sem workspaces**: os stages `homolog` e `prod` existem na mesma HTTP API (`terraform/main.tf`) e as functions têm `function_name` fixo — workspaces duplicariam a Lambda com o mesmo nome (`ResourceConflictException`). Um `apply` sobe os dois stages juntos.
+
+O CD (`.github/workflows/cd.yml`) roda `make check` (gate — único freio, já que a org free não tem branch protection) e aplica o mesmo terraform em push para `homolog` e `main`; o que muda por branch é só qual stage o resumo do deploy referencia. Ver nota sobre cota/credenciais no topo do arquivo e o runbook `aws-academy-setup.md` no repo `postech-sw-arch-p3-docs`.
 
 ## API
 
@@ -92,5 +94,6 @@ Documentação completa (Swagger/Postman): ver o repo principal [postech-sw-arch
 
 - [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate)
 - [ ] Deploy real na AWS — **aguardando credenciais AWS Academy** (rotativas por sessão de laboratório)
+  - Links de deploys ativos: n/a permanente — AWS Academy é efêmero por design (destroy pós-demo, ADR-026); este README documenta como subir o ambiente em minutos
 - [ ] Execução do CI/CD no GitHub — **cota de Actions da organização esgotada** (gate roda local via `make gate`)
 - [ ] Integração das rotas protegidas do gateway com o app no EKS (hoje há uma rota de exemplo com o authorizer)

@@ -23,12 +23,14 @@ _JWT_SECRET = env_obrigatoria("JWT_SECRET")
 EXPIRACAO_MINUTOS = int(os.environ.get("JWT_EXPIRATION_MINUTES", "30"))
 
 
-def emitir_access_token(cliente_id: str, email: str) -> str:
+def emitir_access_token(cliente_id: str, contato: str) -> str:
     """Gera o access token do cliente autenticado por CPF."""
     agora = datetime.now(UTC)
     payload = {
         "sub": cliente_id,
-        "email": email,
+        # `contato` e texto livre (pode ser telefone): PII nao entra num claim
+        # chamado `email` -- so vai se de fato parecer email.
+        "email": contato if "@" in contato else "",
         "papel": "cliente",
         "type": "access",
         "jti": str(uuid.uuid4()),

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import io
+import json
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt as pyjwt
 
-from src.autenticacao_cpf import authorizer, token
+from src.autenticacao_cpf import authorizer, logging_json, token
 
 
 def _evento(header: str | None) -> dict[str, Any]:
@@ -67,3 +70,29 @@ def test_aceita_header_capitalizado() -> None:
     gerado = token.emitir_access_token("cliente-1", "c@e.com")
     evento = {"headers": {"Authorization": f"Bearer {gerado}"}}
     assert authorizer.lambda_handler(evento, None)["isAuthorized"] is True
+
+
+def test_negado_devolve_dict_novo_por_chamada() -> None:
+    primeiro = authorizer.lambda_handler({}, None)
+    primeiro["context"]["poluido"] = "x"
+    segundo = authorizer.lambda_handler({}, None)
+    assert primeiro is not segundo
+    assert segundo["context"] == {}
+
+
+def test_log_json_com_request_id() -> None:
+    """RNF-029: negacao logada em JSON parseavel com request_id do evento."""
+    buf = io.StringIO()
+    captura = logging.StreamHandler(buf)
+    captura.setFormatter(logging_json.JsonFormatter())
+    authorizer._logger.addHandler(captura)
+    try:
+        evento = {"headers": {}, "requestContext": {"requestId": "req-aut-9"}}
+        authorizer.lambda_handler(evento, None)
+    finally:
+        authorizer._logger.removeHandler(captura)
+
+    linha = json.loads(buf.getvalue().strip())
+    assert linha["level"] == "INFO"
+    assert linha["request_id"] == "req-aut-9"
+    assert "Autorizacao negada" in linha["message"]

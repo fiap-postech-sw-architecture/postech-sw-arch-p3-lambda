@@ -28,6 +28,8 @@ build:
 	uv pip install --target build/lambda --python-platform x86_64-manylinux2014 \
 		--python-version 3.13 --only-binary :all: -r build/requirements.txt
 	cp -R src build/lambda/src
+	find build/lambda -name '*.pyc' -delete
+	find build/lambda -type d -name __pycache__ -prune -exec rm -rf {} +
 
 sam-local:
 	sam local start-api

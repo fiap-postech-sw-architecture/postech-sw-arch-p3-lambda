@@ -44,8 +44,9 @@ resource "aws_lambda_function" "authorizer" {
 
   environment {
     variables = {
-      JWT_SECRET     = var.jwt_secret
-      ENCRYPTION_KEY = var.encryption_key # exigida no cold start (import do pacote)
+      # So JWT_SECRET: o authorizer apenas valida JWT (importa token, nao
+      # hashing) -- ENCRYPTION_KEY nao e exigida no cold start.
+      JWT_SECRET = var.jwt_secret
     }
   }
 }
