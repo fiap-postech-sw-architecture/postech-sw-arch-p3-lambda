@@ -47,6 +47,24 @@ sam local invoke AutenticacaoCpfFunction -e events/auth.json
 
 Variáveis de ambiente da function: `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY` (obrigatórias — ausência aborta o cold start) e `JWT_EXPIRATION_MINUTES` (default 30).
 
+### Demo local integrada (lambda + app no kind)
+
+Fluxo completo CPF→JWT→API sem AWS, com o app do repo principal rodando no kind (`make cd-local` lá):
+
+```bash
+# 1. App + banco no kind (repo postech-sw-arch-p3):
+#    make cd-local  — sobe cluster, banco, API e monitoramento.
+# 2. Exponha o Postgres do cluster para a lambda local:
+kubectl --context kind-pytstop -n pytstop-infra port-forward svc/postgres 5432:5432 &
+# 3. Emule a lambda apontando para o MESMO banco e segredos do app
+#    (JWT_SECRET/ENCRYPTION_KEY dos Secrets de demo em k8s/secret.yaml):
+make sam-local     # POST http://localhost:3000/auth {"cpf": "<cpf de cliente semeado>"}
+# 4. Consuma a API do app com o token emitido:
+#    curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/...
+```
+
+Paridade parcial documentada (RFC-003 §3): o roteamento gateway→app e o authorizer não existem localmente — o app valida o JWT com o mesmo segredo (validação redundante do ADR-027). Rotas de papel `cliente` entram na Onda 3/4.
+
 ## Deploy (Terraform + AWS Academy)
 
 Restrições do AWS Academy: sem criação de recursos IAM (usa a role `LabRole` existente via data source), credenciais rotativas no profile `academy`, região `us-east-1`.
