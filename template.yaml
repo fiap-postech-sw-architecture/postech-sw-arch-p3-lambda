@@ -47,8 +47,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: pytstop-autenticacao-cpf
-      # Deps vendorizadas pelo `make build` (o Handler resolve porque o build
-      # copia src/ para build/lambda/src).
+      # Deps vendorizadas pelo `make build-local` (o Handler resolve porque o
+      # build copia src/ para build/lambda-local/src).
       CodeUri: build/lambda-local
       Handler: src.autenticacao_cpf.handler.lambda_handler
       Events:

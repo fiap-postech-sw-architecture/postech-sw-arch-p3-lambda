@@ -40,3 +40,8 @@ jobs:
 
       - name: Terraform fmt + validate
         run: make tf-validate
+
+      - uses: aws-actions/setup-sam@v2
+
+      - name: SAM validate (template de emulacao)
+        run: make sam-validate

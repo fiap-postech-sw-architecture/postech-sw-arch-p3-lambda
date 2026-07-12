@@ -62,7 +62,7 @@ kubectl --context kind-pytstop -n pytstop-infra port-forward svc/postgres 15432:
 #    demo do app em k8s/secret.yaml):
 cp env.json.example env.json
 # 4. Emule gateway + function apontando para o MESMO banco e segredos do app
-#    (o alvo roda `make build` antes — o template usa deps de build/lambda):
+#    (o alvo roda `make build-local` antes — o template usa deps de build/lambda-local):
 make sam-local     # POST http://localhost:3000/auth {"cpf": "<cpf de cliente semeado>"}
 # 5. Consuma a API do app com o token emitido:
 #    curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/...
@@ -101,7 +101,7 @@ Documentação completa (Swagger/Postman): [collection Postman da fase 3](https:
 
 ## Status e pendências
 
-- [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate)
+- [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate, `sam validate --lint`)
 - [ ] Deploy real na AWS — **aguardando credenciais AWS Academy** (rotativas por sessão de laboratório)
   - Links de deploys ativos: n/a permanente — AWS Academy é efêmero por design (destroy pós-demo, ADR-026); este README documenta como subir o ambiente em minutos
 - [ ] Execução do CI/CD no GitHub — **cota de Actions da organização esgotada** (gate roda local via `make gate`)
