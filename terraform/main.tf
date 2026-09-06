@@ -1,7 +1,34 @@
-# Restricao AWS Academy: NAO criar recursos IAM. A role LabRole ja existe na
-# conta e e referenciada via data source (unica opcao permitida no laboratorio).
-data "aws_iam_role" "lab_role" {
-  name = "LabRole"
+# Restricao AWS Academy: NAO criar recursos IAM. A role LabRole ja existe.
+data "aws_caller_identity" "current" {}
+
+locals {
+  lab_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/LabRole"
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+resource "aws_security_group" "lambda_auth" {
+  name        = "pytstop-lambda-auth"
+  description = "Saida da Lambda de autenticacao para o RDS"
+  vpc_id      = data.aws_vpc.default.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "lambda_postgres" {
+  security_group_id = aws_security_group.lambda_auth.id
+  description       = "PostgreSQL na VPC default"
+  from_port         = 5432
+  to_port           = 5432
+  ip_protocol       = "tcp"
+  cidr_ipv4         = data.aws_vpc.default.cidr_block
 }
 
 # Pacote da function: rode `make build` antes do apply -- ele instala as
@@ -14,13 +41,18 @@ data "archive_file" "lambda_zip" {
 
 resource "aws_lambda_function" "autenticacao_cpf" {
   function_name    = "pytstop-autenticacao-cpf"
-  role             = data.aws_iam_role.lab_role.arn
+  role             = local.lab_role_arn
   runtime          = "python3.13"
   handler          = "src.autenticacao_cpf.handler.lambda_handler"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   timeout          = 10
   memory_size      = 256
+
+  vpc_config {
+    subnet_ids         = data.aws_subnets.default.ids
+    security_group_ids = [aws_security_group.lambda_auth.id]
+  }
 
   environment {
     variables = {
@@ -34,7 +66,7 @@ resource "aws_lambda_function" "autenticacao_cpf" {
 
 resource "aws_lambda_function" "authorizer" {
   function_name    = "pytstop-autenticacao-authorizer"
-  role             = data.aws_iam_role.lab_role.arn
+  role             = local.lab_role_arn
   runtime          = "python3.13"
   handler          = "src.autenticacao_cpf.authorizer.lambda_handler"
   filename         = data.archive_file.lambda_zip.output_path
@@ -81,13 +113,32 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   identity_sources                  = ["$request.header.Authorization"]
 }
 
-# Exemplo de rota protegida pelo authorizer. Na integracao final as rotas
-# protegidas apontam para o app no EKS (integracao HTTP_PROXY); aqui a rota
-# de exemplo reusa a integracao da lambda apenas para demonstrar o fluxo.
-resource "aws_apigatewayv2_route" "exemplo_protegido" {
+resource "aws_apigatewayv2_integration" "listar_minhas_ordens" {
   api_id             = aws_apigatewayv2_api.http.id
-  route_key          = "GET /auth/exemplo-protegido"
-  target             = "integrations/${aws_apigatewayv2_integration.auth.id}"
+  integration_type   = "HTTP_PROXY"
+  integration_method = "GET"
+  integration_uri    = "${var.app_base_url}/api/v1/minhas-ordens"
+}
+
+resource "aws_apigatewayv2_route" "listar_minhas_ordens" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "GET /api/v1/minhas-ordens"
+  target             = "integrations/${aws_apigatewayv2_integration.listar_minhas_ordens.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_integration" "obter_minha_ordem" {
+  api_id             = aws_apigatewayv2_api.http.id
+  integration_type   = "HTTP_PROXY"
+  integration_method = "GET"
+  integration_uri    = "${var.app_base_url}/api/v1/minhas-ordens/{ordem_id}"
+}
+
+resource "aws_apigatewayv2_route" "obter_minha_ordem" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "GET /api/v1/minhas-ordens/{ordem_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.obter_minha_ordem.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }

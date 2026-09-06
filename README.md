@@ -73,36 +73,39 @@ make sam-local     # POST http://localhost:3000/auth {"cpf": "<cpf de cliente se
 > `gitleaks:allow` lá) — nunca valores reais. `env.json` está no `.gitignore`
 > para o caso de alguém trocar por valores próprios.
 
-Paridade parcial documentada (RFC-003 §3): o roteamento gateway→app não existe localmente — o app valida o JWT com o mesmo segredo (validação redundante do ADR-027). O authorizer É emulado pelo SAM: a rota de exemplo `GET /auth/exemplo-protegido` exige Bearer JWT (401 sem token). Rotas de papel `cliente` entram na Onda 3/4.
+O SAM emula localmente apenas o `POST /auth`. As rotas de cliente são chamadas diretamente no app local, pois o proxy HTTP para o EKS existe somente na AWS. O authorizer é coberto pelos testes unitários locais e pelos smokes do API Gateway na AWS.
 
 ## Deploy (Terraform + AWS Academy)
 
-Restrições do AWS Academy: sem criação de recursos IAM (usa a role `LabRole` existente via data source), credenciais rotativas no profile `academy`, região `us-east-1`.
+Restrições do AWS Academy: sem criação de recursos IAM. O ARN da `LabRole` existente é formado com o account ID retornado pelo STS, evitando `iam:GetRole`. As credenciais rotativas usam a cadeia padrão, sempre em `us-east-1`.
 
 ```bash
 make build                             # empacota deps (wheels linux) + src em build/lambda/
 cd terraform
 terraform init
 terraform apply \
-  -var jwt_secret=... -var encryption_key=... -var database_url=...
+  -var jwt_secret=... -var encryption_key=... -var database_url=... \
+  -var app_base_url=http://ENDERECO-DO-LOAD-BALANCER:8000
 ```
 
-Um único state, **sem workspaces**: os stages `homolog` e `prod` existem na mesma HTTP API (`terraform/main.tf`) e as functions têm `function_name` fixo — workspaces duplicariam a Lambda com o mesmo nome (`ResourceConflictException`). Um `apply` sobe os dois stages juntos.
+Um único state remoto no bucket `pytstop-terraform-state-924563550535`, chave `lambda/terraform.tfstate`, com versionamento e lock nativo (`use_lockfile`). Sem workspaces: os stages `homolog` e `prod` existem na mesma HTTP API e as functions têm nome fixo. Não execute Terraform local enquanto o CD deste repositório estiver rodando.
 
-O CD (`.github/workflows/cd.yml`) roda `make check` (gate — único freio, já que a org free não tem branch protection) e aplica o mesmo terraform em push para `homolog` e `main`; o que muda por branch é só qual stage o resumo do deploy referencia. Ver nota sobre cota/credenciais no topo do arquivo e o runbook `aws-academy-setup.md` no repo `postech-sw-arch-p3-docs`.
+Apenas a Lambda de autenticação entra na VPC default para consultar o RDS na porta 5432. O authorizer permanece fora da VPC, pois valida o JWT sem acessar o banco.
+
+O CD (`.github/workflows/cd.yml`) roda `make check` antes do deploy e aplica o mesmo Terraform em push para `homolog` e `main`; o que muda por branch é só qual stage o resumo referencia. Ver a nota sobre credenciais rotativas no topo do arquivo e o runbook `aws-academy-setup.md` no repo `postech-sw-arch-p3-docs`.
 
 ## API
 
 | Método | Rota | Descrição |
 |---|---|---|
 | POST | `/auth` | `{"cpf": "..."}` → `200 {access_token, token_type, expires_in}` \| `400` CPF malformado \| `401` credenciais inválidas |
+| GET | `/api/v1/minhas-ordens` | Lista as ordens do cliente autenticado; proxy HTTP para o app no EKS, protegido pelo authorizer |
+| GET | `/api/v1/minhas-ordens/{ordem_id}` | Consulta uma ordem pertencente ao cliente; retorna `404` para ordem de outro cliente |
 
 Documentação completa (Swagger/Postman): [collection Postman da fase 3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/postman-collection-fase3.json) (inclui esta rota `POST /auth` com a variável `gateway_url`) e [OpenAPI da API principal](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/openapi-fase3.json).
 
 ## Status e pendências
 
 - [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate, `sam validate --lint`)
-- [ ] Deploy real na AWS — **aguardando credenciais AWS Academy** (rotativas por sessão de laboratório)
+- [ ] Primeiro deploy real na AWS
   - Links de deploys ativos: n/a permanente — AWS Academy é efêmero por design (destroy pós-demo, ADR-026); este README documenta como subir o ambiente em minutos
-- [ ] Execução do CI/CD no GitHub — **cota de Actions da organização esgotada** (gate roda local via `make gate`)
-- [ ] Integração das rotas protegidas do gateway com o app no EKS (hoje há uma rota de exemplo com o authorizer)
