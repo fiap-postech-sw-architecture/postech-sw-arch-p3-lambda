@@ -40,8 +40,8 @@ jobs:
         with:
           terraform_version: "1.10.x"
 
-      - name: Terraform fmt + validate
-        run: make tf-validate
+      - name: Terraform fmt + validate + test
+        run: make tf-validate tf-test
 
       - uses: aws-actions/setup-sam@v2
 

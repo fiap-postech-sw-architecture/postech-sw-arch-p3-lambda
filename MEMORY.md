@@ -8,6 +8,7 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Recent decisions
 
+- 2026-09-07 - As rotas GET de cliente compartilham uma integração HTTP_PROXY via VPC Link para o listener TCP 8000 do NLB interno; subnets são descobertas por `kubernetes.io/role/internal-elb=1`, o SG restringe a saída à porta 8000 e `overwrite:path=$request.path` remove o stage antes do FastAPI, substituindo o proxy por URL pública
 - 2026-09-06 - Terraform de Lambda/Gateway usa backend S3 `pytstop-terraform-state-924563550535` na chave `lambda/terraform.tfstate`, lock nativo (`use_lockfile`, Terraform >=1.10) e o mesmo state nas execucoes local e Actions; homolog/main continuam na mesma HTTP API e sao serializados
 - 2026-07-11 - CD sem workspaces Terraform: um unico state, stages homolog/prod na MESMA HTTP API (function_name fixo - workspace por branch criaria segunda Lambda com o mesmo nome, ResourceConflictException); gate (make check) roda no proprio cd.yml antes do deploy - unico freio, org free nao tem branch protection
 - 2026-07-11 - Bootstrap da fase 3: function serverless de autenticacao por CPF (Lambda python3.13 + API GW HTTP API + authorizer); ADRs 026-029 vivem no repo postech-sw-arch-p3 - Terraform da function/gateway vive NESTE repo; SAM e so emulacao local (ADR-029)

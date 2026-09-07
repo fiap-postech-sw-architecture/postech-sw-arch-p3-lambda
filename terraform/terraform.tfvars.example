@@ -11,5 +11,5 @@ encryption_key = "troque-esta-chave-fernet"
 # Endpoint do RDS provisionado pelo repo postech-sw-arch-p3-infra-db:
 database_url = "postgresql://pytstop:SENHA@ENDPOINT:5432/pytstop"
 
-# URL publica do Service LoadBalancer da aplicacao no EKS:
-app_base_url = "http://ENDERECO-DO-LOAD-BALANCER:8000"
+# Listener TCP 8000 do NLB interno da aplicacao no EKS:
+app_listener_arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/net/pytstop/LOAD_BALANCER_ID/LISTENER_ID"

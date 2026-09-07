@@ -16,6 +16,18 @@ data "aws_subnets" "default" {
   }
 }
 
+data "aws_subnets" "private" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+
+  filter {
+    name   = "tag:kubernetes.io/role/internal-elb"
+    values = ["1"]
+  }
+}
+
 resource "aws_security_group" "lambda_auth" {
   name        = "pytstop-lambda-auth"
   description = "Saida da Lambda de autenticacao para o RDS"
@@ -27,6 +39,21 @@ resource "aws_vpc_security_group_egress_rule" "lambda_postgres" {
   description       = "PostgreSQL na VPC default"
   from_port         = 5432
   to_port           = 5432
+  ip_protocol       = "tcp"
+  cidr_ipv4         = data.aws_vpc.default.cidr_block
+}
+
+resource "aws_security_group" "vpc_link" {
+  name        = "pytstop-vpc-link"
+  description = "Saida do VPC Link para a API no NLB interno"
+  vpc_id      = data.aws_vpc.default.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "vpc_link_app" {
+  security_group_id = aws_security_group.vpc_link.id
+  description       = "API PytStop na VPC default"
+  from_port         = 8000
+  to_port           = 8000
   ip_protocol       = "tcp"
   cidr_ipv4         = data.aws_vpc.default.cidr_block
 }
@@ -113,32 +140,45 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   identity_sources                  = ["$request.header.Authorization"]
 }
 
-resource "aws_apigatewayv2_integration" "listar_minhas_ordens" {
-  api_id             = aws_apigatewayv2_api.http.id
-  integration_type   = "HTTP_PROXY"
-  integration_method = "GET"
-  integration_uri    = "${var.app_base_url}/api/v1/minhas-ordens"
+resource "aws_apigatewayv2_vpc_link" "app" {
+  name               = "pytstop-app"
+  security_group_ids = [aws_security_group.vpc_link.id]
+  subnet_ids         = data.aws_subnets.private.ids
+
+  lifecycle {
+    precondition {
+      condition     = length(data.aws_subnets.private.ids) == 2
+      error_message = "A VPC deve conter as duas subnets privadas do PytStop."
+    }
+  }
+}
+
+resource "aws_apigatewayv2_integration" "minhas_ordens" {
+  api_id                 = aws_apigatewayv2_api.http.id
+  integration_type       = "HTTP_PROXY"
+  integration_method     = "GET"
+  integration_uri        = var.app_listener_arn
+  connection_type        = "VPC_LINK"
+  connection_id          = aws_apigatewayv2_vpc_link.app.id
+  payload_format_version = "1.0"
+
+  request_parameters = {
+    "overwrite:path" = "$request.path"
+  }
 }
 
 resource "aws_apigatewayv2_route" "listar_minhas_ordens" {
   api_id             = aws_apigatewayv2_api.http.id
   route_key          = "GET /api/v1/minhas-ordens"
-  target             = "integrations/${aws_apigatewayv2_integration.listar_minhas_ordens.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.minhas_ordens.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
-}
-
-resource "aws_apigatewayv2_integration" "obter_minha_ordem" {
-  api_id             = aws_apigatewayv2_api.http.id
-  integration_type   = "HTTP_PROXY"
-  integration_method = "GET"
-  integration_uri    = "${var.app_base_url}/api/v1/minhas-ordens/{ordem_id}"
 }
 
 resource "aws_apigatewayv2_route" "obter_minha_ordem" {
   api_id             = aws_apigatewayv2_api.http.id
   route_key          = "GET /api/v1/minhas-ordens/{ordem_id}"
-  target             = "integrations/${aws_apigatewayv2_integration.obter_minha_ordem.id}"
+  target             = "integrations/${aws_apigatewayv2_integration.minhas_ordens.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }

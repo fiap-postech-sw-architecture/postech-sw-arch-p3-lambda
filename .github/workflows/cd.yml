@@ -39,7 +39,7 @@ jobs:
       TF_VAR_jwt_secret: ${{ secrets.TF_VAR_JWT_SECRET }}
       TF_VAR_encryption_key: ${{ secrets.TF_VAR_ENCRYPTION_KEY }}
       TF_VAR_database_url: ${{ secrets.TF_VAR_DATABASE_URL }}
-      TF_VAR_app_base_url: ${{ secrets.TF_VAR_APP_BASE_URL }}
+      TF_VAR_app_listener_arn: ${{ secrets.TF_VAR_APP_LISTENER_ARN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +56,9 @@ jobs:
 
       - name: Terraform init
         run: terraform -chdir=terraform init -input=false
+
+      - name: Terraform test
+        run: terraform -chdir=terraform test
 
       # SEM workspaces, um unico state: os stages homolog e prod ja existem na
       # MESMA HTTP API (terraform/main.tf) e as functions tem function_name

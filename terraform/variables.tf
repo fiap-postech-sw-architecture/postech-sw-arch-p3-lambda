@@ -16,12 +16,15 @@ variable "database_url" {
   sensitive   = true
 }
 
-variable "app_base_url" {
-  description = "URL publica do LoadBalancer da aplicacao no EKS, sem barra final"
+variable "app_listener_arn" {
+  description = "ARN do listener TCP 8000 do NLB interno da aplicacao"
   type        = string
 
   validation {
-    condition     = can(regex("^https?://[A-Za-z0-9.-]+(:[0-9]+)?$", var.app_base_url))
-    error_message = "app_base_url deve ser uma URL HTTP(S) sem caminho ou barra final."
+    condition = can(regex(
+      "^arn:aws:elasticloadbalancing:us-east-1:[0-9]{12}:listener/net/.+$",
+      var.app_listener_arn,
+    ))
+    error_message = "app_listener_arn deve ser um ARN de listener NLB em us-east-1."
   }
 }

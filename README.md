@@ -85,12 +85,16 @@ cd terraform
 terraform init
 terraform apply \
   -var jwt_secret=... -var encryption_key=... -var database_url=... \
-  -var app_base_url=http://ENDERECO-DO-LOAD-BALANCER:8000
+  -var app_listener_arn=arn:aws:elasticloadbalancing:us-east-1:...:listener/net/...
 ```
 
 Um único state remoto no bucket `pytstop-terraform-state-924563550535`, chave `lambda/terraform.tfstate`, com versionamento e lock nativo (`use_lockfile`). Sem workspaces: os stages `homolog` e `prod` existem na mesma HTTP API e as functions têm nome fixo. Não execute Terraform local enquanto o CD deste repositório estiver rodando.
 
 Apenas a Lambda de autenticação entra na VPC default para consultar o RDS na porta 5432. O authorizer permanece fora da VPC, pois valida o JWT sem acessar o banco.
+
+As rotas de cliente compartilham uma integração HTTP proxy privada. O Terraform descobre as duas subnets pela tag `kubernetes.io/role/internal-elb=1`, cria o VPC Link com saída restrita à porta 8000 e recebe o listener do NLB interno por `app_listener_arn`. O parameter mapping `overwrite:path = $request.path` remove o prefixo do stage antes de encaminhar a requisição ao FastAPI. No CD, configure o secret `TF_VAR_APP_LISTENER_ARN`.
+
+Provisione na ordem `infra-k8s → app/NLB → lambda`: após cada recriação do NLB, obtenha o novo ARN do listener TCP 8000 e atualize `TF_VAR_APP_LISTENER_ARN` antes do deploy deste repositório. Na desmontagem, destrua primeiro Lambda/Gateway/VPC Link, depois app/NLB e por último EKS/subnets privadas, evitando ENIs ainda anexadas.
 
 O CD (`.github/workflows/cd.yml`) roda `make check` antes do deploy e aplica o mesmo Terraform em push para `homolog` e `main`; o que muda por branch é só qual stage o resumo referencia. Ver a nota sobre credenciais rotativas no topo do arquivo e o runbook `aws-academy-setup.md` no repo `postech-sw-arch-p3-docs`.
 
@@ -106,6 +110,6 @@ Documentação completa (Swagger/Postman): [collection Postman da fase 3](https:
 
 ## Status e pendências
 
-- [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate, `sam validate --lint`)
+- [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate/test, `sam validate --lint`)
 - [ ] Primeiro deploy real na AWS
   - Links de deploys ativos: n/a permanente — AWS Academy é efêmero por design (destroy pós-demo, ADR-026); este README documenta como subir o ambiente em minutos
