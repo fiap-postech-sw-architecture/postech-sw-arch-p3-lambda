@@ -90,7 +90,7 @@ terraform apply \
 
 Um único state remoto no bucket `pytstop-terraform-state-924563550535`, chave `lambda/terraform.tfstate`, com versionamento e lock nativo (`use_lockfile`). Sem workspaces: os stages `homolog` e `prod` existem na mesma HTTP API e as functions têm nome fixo. Não execute Terraform local enquanto o CD deste repositório estiver rodando.
 
-Apenas a Lambda de autenticação entra na VPC default para consultar o RDS na porta 5432. O authorizer permanece fora da VPC, pois valida o JWT sem acessar o banco.
+Apenas a Lambda de autenticação entra nas subnets públicas originais da VPC default, selecionadas por `default-for-az=true`, para consultar o RDS na porta 5432. O authorizer permanece fora da VPC, pois valida o JWT sem acessar o banco.
 
 As rotas de cliente compartilham uma integração HTTP proxy privada. O Terraform descobre as duas subnets pela tag `kubernetes.io/role/internal-elb=1`, cria o VPC Link com saída restrita à porta 8000 e recebe o listener do NLB interno por `app_listener_arn`. O parameter mapping `overwrite:path = $request.path` remove o prefixo do stage antes de encaminhar a requisição ao FastAPI. No CD, configure o secret `TF_VAR_APP_LISTENER_ARN`.
 

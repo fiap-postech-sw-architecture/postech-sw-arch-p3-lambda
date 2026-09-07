@@ -56,4 +56,12 @@ run "private_proxy" {
     )
     error_message = "O VPC Link deve sair somente pela porta da API."
   }
+
+  assert {
+    condition = contains([
+      for filter in data.aws_subnets.default.filter :
+      "${filter.name}:${join(",", filter.values)}"
+    ], "default-for-az:true")
+    error_message = "A Lambda de autenticacao deve usar somente subnets publicas."
+  }
 }

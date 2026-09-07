@@ -19,6 +19,7 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Gotchas
 
+- 2026-09-07 - Depois que a integração cria subnets privadas na VPC default, filtrar `data.aws_subnets.default` apenas por VPC também as injeta no `vpc_config` da Lambda; `default-for-az=true` mantém a função nas subnets públicas originais e reserva as privadas ao NLB/VPC Link
 - 2026-09-06 - Learner Lab nega `iam:GetRole`; usar o account ID de `aws_caller_identity` para formar o ARN da LabRole existente, sem `data aws_iam_role` e sem criar IAM
 - 2026-07-11 - testcontainers + colima: ryuk falha ao montar o socket (~/.colima/.../docker.sock) - Makefile test-integ exporta TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock (inocuo no Docker Desktop)
 - 2026-07-11 - AWS Academy: NAO criar recursos IAM; usar data source da role LabRole; aws_lambda_permission (resource policy) e permitido
