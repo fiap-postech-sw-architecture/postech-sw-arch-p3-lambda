@@ -1,4 +1,4 @@
-.PHONY: lint typecheck security test test-integ check build sam-local tf-validate sam-validate gate
+.PHONY: lint typecheck security test test-integ check build sam-local tf-validate tf-test sam-validate gate
 
 lint:
 	uv run ruff check .
@@ -66,6 +66,9 @@ tf-validate:
 	terraform -chdir=terraform init -backend=false -input=false > /dev/null
 	terraform -chdir=terraform validate
 
+tf-test:
+	terraform -chdir=terraform test
+
 # Gate real do template SAM. Sem o SAM CLI o alvo FALHA — o gate nao pode
 # passar em silencio sem validar. Instalacao: brew install aws-sam-cli
 sam-validate:
@@ -74,4 +77,4 @@ sam-validate:
 		exit 1; }
 	sam validate --lint
 
-gate: check tf-validate sam-validate
+gate: check tf-validate tf-test sam-validate

@@ -2,8 +2,6 @@
 # Os tres segredos abaixo sao obrigatorios e NUNCA vao para o git —
 # no CI eles chegam via GitHub Secrets/TF_VAR_* (ADR-033).
 
-# aws_profile  = "academy"
-
 # Mesmo segredo JWT do app (Secret K8s jwt-secret) — emissor unico por publico (ADR-028):
 jwt_secret = "troque-este-segredo"
 
@@ -12,3 +10,6 @@ encryption_key = "troque-esta-chave-fernet"
 
 # Endpoint do RDS provisionado pelo repo postech-sw-arch-p3-infra-db:
 database_url = "postgresql://pytstop:SENHA@ENDPOINT:5432/pytstop"
+
+# Listener TCP 8000 do NLB interno da aplicacao no EKS:
+app_listener_arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/net/pytstop/LOAD_BALANCER_ID/LISTENER_ID"

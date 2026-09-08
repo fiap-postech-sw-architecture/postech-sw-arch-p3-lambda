@@ -27,9 +27,7 @@ Globals:
 
 Resources:
   # HttpApi explicito: eventos implicitos nao aceitam Lambda authorizer.
-  # Espelha o Terraform (terraform/main.tf): authorizer payload v2 simple
-  # response + rota protegida de exemplo; /auth continua publica (sem
-  # DefaultAuthorizer, rotas sem Auth ficam abertas).
+  # Mantem o authorizer para validacao direta; /auth continua publica.
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -58,16 +56,6 @@ Resources:
             ApiId: !Ref Api
             Path: /auth
             Method: post
-        # Como no Terraform, a rota de exemplo reusa a integracao da lambda
-        # apenas para demonstrar o authorizer (integracao final = app no EKS).
-        ExemploProtegido:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref Api
-            Path: /auth/exemplo-protegido
-            Method: get
-            Auth:
-              Authorizer: LambdaAuthorizer
 
   AutorizadorFunction:
     Type: AWS::Serverless::Function

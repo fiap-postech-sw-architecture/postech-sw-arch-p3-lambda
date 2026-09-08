@@ -8,6 +8,8 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Recent decisions
 
+- 2026-09-07 - As rotas GET de cliente compartilham uma integração HTTP_PROXY via VPC Link para o listener TCP 8000 do NLB interno; subnets são descobertas por `kubernetes.io/role/internal-elb=1`, o SG restringe a saída à porta 8000 e `overwrite:path=$request.path` remove o stage antes do FastAPI, substituindo o proxy por URL pública
+- 2026-09-06 - Terraform de Lambda/Gateway usa backend S3 `pytstop-terraform-state-924563550535` na chave `lambda/terraform.tfstate`, lock nativo (`use_lockfile`, Terraform >=1.10) e o mesmo state nas execucoes local e Actions; homolog/main continuam na mesma HTTP API e sao serializados
 - 2026-07-11 - CD sem workspaces Terraform: um unico state, stages homolog/prod na MESMA HTTP API (function_name fixo - workspace por branch criaria segunda Lambda com o mesmo nome, ResourceConflictException); gate (make check) roda no proprio cd.yml antes do deploy - unico freio, org free nao tem branch protection
 - 2026-07-11 - Bootstrap da fase 3: function serverless de autenticacao por CPF (Lambda python3.13 + API GW HTTP API + authorizer); ADRs 026-029 vivem no repo postech-sw-arch-p3 - Terraform da function/gateway vive NESTE repo; SAM e so emulacao local (ADR-029)
 
@@ -17,11 +19,14 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Gotchas
 
+- 2026-09-07 - Depois que a integração cria subnets privadas na VPC default, filtrar `data.aws_subnets.default` apenas por VPC também as injeta no `vpc_config` da Lambda; `default-for-az=true` mantém a função nas subnets públicas originais e reserva as privadas ao NLB/VPC Link
+- 2026-09-06 - Learner Lab nega `iam:GetRole`; usar o account ID de `aws_caller_identity` para formar o ARN da LabRole existente, sem `data aws_iam_role` e sem criar IAM
 - 2026-07-11 - testcontainers + colima: ryuk falha ao montar o socket (~/.colima/.../docker.sock) - Makefile test-integ exporta TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock (inocuo no Docker Desktop)
 - 2026-07-11 - AWS Academy: NAO criar recursos IAM; usar data source da role LabRole; aws_lambda_permission (resource policy) e permitido
 
 ## Tech debt / TODO
 
+- 2026-09-06 - RESOLVIDO - A integracao HTTP_PROXY do Gateway passa a encaminhar as duas rotas protegidas de cliente para o LoadBalancer da aplicacao no EKS; supersede a pendencia de 2026-07-11 sobre a rota de exemplo
 - 2026-07-11 - MEDIUM - rota protegida do gateway e exemplo apontando para a propria lambda; integrar HTTP_PROXY com o app no EKS quando o endpoint existir
 
 ## Review lessons
