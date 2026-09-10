@@ -18,6 +18,12 @@ class Cliente(NamedTuple):
     contato: str
     ativo: bool
 
+    def __repr__(self) -> str:
+        # `contato` e PII (e-mail/telefone): o repr mascara para reduzir o risco
+        # de vazar em log ou traceback; str()/serializacao explicita continuam
+        # responsabilidade de quem chama.
+        return f"Cliente(id={self.id!r}, contato='***', ativo={self.ativo!r})"
+
 
 def buscar_cliente_por_hash(documento_hash: str) -> Cliente | None:
     """Busca o cliente pelo hash deterministico do documento; None se nao existir."""
