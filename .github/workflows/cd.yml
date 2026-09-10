@@ -1,7 +1,8 @@
 # NOTA OPERACIONAL: as credenciais do AWS Academy sao rotativas.
 # Antes de cada deploy, atualize os secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
 # AWS_SESSION_TOKEN. Runbook completo: aws-academy-setup.md no repo
-# postech-sw-arch-p3-docs.
+# postech-sw-arch-p3-docs. Com o token vencido (sessao encerrada) o job
+# `deploy` pula os passos AWS com aviso e termina verde; o `gate` roda sempre.
 name: CD
 
 on:
@@ -43,21 +44,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
+      # Secrets AWS ausentes OU vencidos (o token do Learner Lab dura ~4h e
+      # continua gravado depois da sessao) = pular os passos AWS com aviso em
+      # vez de falhar. Validacao via `sts get-caller-identity`, saida descartada.
+      - id: aws
+        name: Check AWS credentials
+        run: |
+          command -v aws >/dev/null || { echo "::error::aws cli ausente no runner; gate de credencial impossivel"; exit 1; }
+          if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "motivo=secrets AWS ausentes" >> "$GITHUB_OUTPUT"
+          elif aws sts get-caller-identity >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "motivo=credenciais AWS vencidas ou invalidas (sessao do Academy encerrada)" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.aws.outputs.enabled == 'true'
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
 
-      - uses: hashicorp/setup-terraform@v3
+      - if: steps.aws.outputs.enabled == 'true'
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.10.x"
 
-      - name: Empacotar lambda (deps + src)
+      - if: steps.aws.outputs.enabled == 'true'
+        name: Empacotar lambda (deps + src)
         run: make build
 
-      - name: Terraform init
+      - if: steps.aws.outputs.enabled == 'true'
+        name: Terraform init
         run: terraform -chdir=terraform init -input=false
 
-      - name: Terraform test
+      - if: steps.aws.outputs.enabled == 'true'
+        name: Terraform test
         run: terraform -chdir=terraform test
 
       # SEM workspaces, um unico state: os stages homolog e prod ja existem na
@@ -66,12 +88,18 @@ jobs:
       # o mesmo nome (ResourceConflictException). Push em homolog ou em main
       # aplica o MESMO terraform (as duas stages sobem juntas); o que muda por
       # branch e apenas qual stage o summary/smoke referencia.
-      - name: Terraform apply
+      - if: steps.aws.outputs.enabled == 'true'
+        name: Terraform apply
         run: terraform -chdir=terraform apply -input=false -auto-approve
 
-      - name: Resumo do deploy (stage do branch)
+      - if: steps.aws.outputs.enabled == 'true'
+        name: Resumo do deploy (stage do branch)
         run: |
           STAGE=$([ "${GITHUB_REF_NAME}" = "main" ] && echo prod || echo homolog)
           URL=$(terraform -chdir=terraform output -raw "auth_url_${STAGE}")
           echo "Deploy aplicado (stages homolog e prod). Stage deste branch: ${STAGE}" >> "$GITHUB_STEP_SUMMARY"
           echo "POST /auth: ${URL}" >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.aws.outputs.enabled != 'true'
+        name: Notice (AWS skipped)
+        run: echo "::notice::passos AWS pulados — ${{ steps.aws.outputs.motivo }}"
+
