@@ -51,9 +51,9 @@ jobs:
         name: Check AWS credentials
         run: |
           command -v aws >/dev/null || { echo "::error::aws cli ausente no runner; gate de credencial impossivel"; exit 1; }
-          if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ] || [ -z "${AWS_SESSION_TOKEN}" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "motivo=secrets AWS ausentes" >> "$GITHUB_OUTPUT"
+            echo "motivo=secrets AWS ausentes ou incompletos (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)" >> "$GITHUB_OUTPUT"
           elif aws sts get-caller-identity >/dev/null 2>&1; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
