@@ -210,10 +210,28 @@ resource "aws_apigatewayv2_stage" "homolog" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "homolog"
   auto_deploy = true
+
+  # Throttle no stage (RN-022, anti-enumeracao): sem limite, um CPF valido e
+  # enumeravel por forca bruta contra POST /auth -- o app tem rate limit
+  # proprio nas rotas de login, a borda precisa do equivalente. Valores de
+  # demo (10 req/s sustentados, rajada de 20); ajustar por rota se preciso.
+  default_route_settings {
+    throttling_burst_limit = 20
+    throttling_rate_limit  = 10
+  }
 }
 
 resource "aws_apigatewayv2_stage" "prod" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "prod"
   auto_deploy = true
+
+  # Throttle no stage (RN-022, anti-enumeracao): sem limite, um CPF valido e
+  # enumeravel por forca bruta contra POST /auth -- o app tem rate limit
+  # proprio nas rotas de login, a borda precisa do equivalente. Valores de
+  # demo (10 req/s sustentados, rajada de 20); ajustar por rota se preciso.
+  default_route_settings {
+    throttling_burst_limit = 20
+    throttling_rate_limit  = 10
+  }
 }
