@@ -167,8 +167,11 @@ resource "aws_apigatewayv2_integration" "minhas_ordens" {
   connection_id          = aws_apigatewayv2_vpc_link.app.id
   payload_format_version = "1.0"
 
+  # Correlacao fim-a-fim (RNF-029): o requestId do gateway vira X-Request-ID
+  # na chamada ao app, que o aceita e o ecoa nos logs e na resposta.
   request_parameters = {
-    "overwrite:path" = "$request.path"
+    "overwrite:path"             = "$request.path"
+    "append:header.X-Request-ID" = "$context.requestId"
   }
 }
 

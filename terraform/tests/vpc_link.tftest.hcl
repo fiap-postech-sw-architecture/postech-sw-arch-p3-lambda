@@ -51,6 +51,14 @@ run "private_proxy" {
 
   assert {
     condition = (
+      aws_apigatewayv2_integration.minhas_ordens.request_parameters["append:header.X-Request-ID"]
+      == "$context.requestId"
+    )
+    error_message = "O requestId do gateway deve virar X-Request-ID no app (RNF-029)."
+  }
+
+  assert {
+    condition = (
       aws_vpc_security_group_egress_rule.vpc_link_app.from_port == 8000 &&
       aws_vpc_security_group_egress_rule.vpc_link_app.to_port == 8000
     )
