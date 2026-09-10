@@ -82,3 +82,10 @@ def test_erro_sem_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
         db.buscar_cliente_por_hash("hash-abc")
+
+
+def test_repr_de_cliente_mascara_contato() -> None:
+    cliente = db.Cliente(id="abc-1", contato="c@e.com", ativo=True)
+
+    assert "c@e.com" not in repr(cliente)
+    assert "contato='***'" in repr(cliente)
