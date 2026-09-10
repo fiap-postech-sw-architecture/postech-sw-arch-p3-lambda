@@ -5,6 +5,9 @@
 # `deploy` pula os passos AWS com aviso e termina verde; o `gate` roda sempre.
 name: CD
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, homolog]

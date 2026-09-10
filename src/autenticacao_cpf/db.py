@@ -19,8 +19,9 @@ class Cliente(NamedTuple):
     ativo: bool
 
     def __repr__(self) -> str:
-        # `contato` e PII (e-mail/telefone): nunca chega a log ou traceback
-        # via repr, mesmo que um caller futuro logue o objeto inteiro.
+        # `contato` e PII (e-mail/telefone): o repr mascara para reduzir o risco
+        # de vazar em log ou traceback; str()/serializacao explicita continuam
+        # responsabilidade de quem chama.
         return f"Cliente(id={self.id!r}, contato='***', ativo={self.ativo!r})"
 
 

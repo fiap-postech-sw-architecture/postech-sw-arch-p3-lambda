@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch: # disparo manual (Desbloqueio 2: gh workflow run ci.yml)
   push:
