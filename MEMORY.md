@@ -22,6 +22,7 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Gotchas
 
+- 2026-10-06 - PyJWT 2.13.x (runtime desta function) ganhou 27 advisories em 10/2026, entre eles bypass com chave HMAC vazia e forja de token por Unicode; subido para 2.15.1 com piso no pyproject. O app so acusou porque tem pip-audit e trivy no CI; esta Lambda nao tem SCA e o buraco passaria despercebido
 - 2026-10-06 - O avaliador da FIAP conta como "commit direto na main" todo commit sem `(#N)` no titulo (Lambda: 11 = 8 diretos de 11-12/07, antes da protecao, + 3 merges de PR com `--subject` customizado). `gh pr merge --squash --subject` NAO acrescenta o `(#N)`: inclua-o no titulo ou omita `--subject`
 - 2026-09-07 - Depois que a integração cria subnets privadas na VPC default, filtrar `data.aws_subnets.default` apenas por VPC também as injeta no `vpc_config` da Lambda; `default-for-az=true` mantém a função nas subnets públicas originais e reserva as privadas ao NLB/VPC Link
 - 2026-09-06 - Learner Lab nega `iam:GetRole`; usar o account ID de `aws_caller_identity` para formar o ARN da LabRole existente, sem `data aws_iam_role` e sem criar IAM
@@ -30,6 +31,7 @@ Updated by AI agents at task end per `postech-ai-helper/ai/canonical/task-end-re
 
 ## Tech debt / TODO
 
+- 2026-10-06 - MEDIUM - A Lambda de autenticacao nao tem SCA no CI (so `gate` e `tf-validate`); adicionar `pip-audit` sobre o export de producao ao `gate` (usar `uvx --python 3.13`, o `ensurepip` do Python 3.14.4 do uvx aborta no Mac) para advisories de dependencia nao dependerem do CI do app
 - 2026-09-06 - RESOLVIDO - A integracao HTTP_PROXY do Gateway passa a encaminhar as duas rotas protegidas de cliente para o LoadBalancer da aplicacao no EKS; supersede a pendencia de 2026-07-11 sobre a rota de exemplo
 - 2026-07-11 - MEDIUM - rota protegida do gateway e exemplo apontando para a propria lambda; integrar HTTP_PROXY com o app no EKS quando o endpoint existir
 

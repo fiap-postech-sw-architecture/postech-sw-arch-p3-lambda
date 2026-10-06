@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Function serverless de autenticacao por CPF (PytStop, Tech Challenge fase 3)"
 requires-python = ">=3.13"
 dependencies = [
-    "pyjwt>=2.9",
+    "pyjwt>=2.15.1",  # 2.13.x tem 27 advisories (bypass de HMAC vazio, forja de token)
     "psycopg[binary]>=3.2",
 ]
 
