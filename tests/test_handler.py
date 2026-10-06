@@ -11,6 +11,8 @@ import pytest
 from src.autenticacao_cpf import db, handler, logging_json
 
 CPF_VALIDO = "529.982.247-25"
+# O mesmo CPF com digitos arabe-indicos (U+0660..U+0669), montado por codepoint.
+CPF_ARABE_INDICO = "".join(chr(0x0660 + int(d)) for d in "52998224725")
 
 
 def _evento(body: str | None, *, base64_encoded: bool = False) -> dict[str, Any]:
@@ -50,11 +52,24 @@ def test_200_cliente_ativo(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(hashes[0]) == 64
 
 
-def test_400_cpf_malformado(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    "cpf",
+    [
+        "111.111.111-11",  # sequencia repetida
+        "529.982.247-24",  # segundo DV errado
+        "529.982.247-35",  # primeiro DV errado
+        "529.982.247",  # curto demais
+        "529.982.247-250",  # longo demais
+        "sem-digitos",
+        CPF_ARABE_INDICO,  # digitos de outro alfabeto
+    ],
+)
+def test_400_cpf_invalido_nao_consulta_o_banco(
+    monkeypatch: pytest.MonkeyPatch, cpf: str
+) -> None:
+    """Digitos verificadores (modulo 11) sao checados ANTES do acesso ao RDS."""
     hashes = _mock_cliente(monkeypatch, None)
-    resposta = handler.lambda_handler(
-        _evento(json.dumps({"cpf": "111.111.111-11"})), None
-    )
+    resposta = handler.lambda_handler(_evento(json.dumps({"cpf": cpf})), None)
     assert resposta["statusCode"] == 400
     assert _corpo(resposta)["detail"] == "CPF invalido"
     assert hashes == []  # nem chega ao banco

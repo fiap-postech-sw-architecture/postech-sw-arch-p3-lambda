@@ -52,7 +52,6 @@ name = "autenticacao-cpf"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "brutils" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyjwt" },
 ]
@@ -60,6 +59,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "bandit" },
+    { name = "brutils" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -69,7 +69,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "brutils", specifier = ">=2.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyjwt", specifier = ">=2.9" },
 ]
@@ -77,6 +76,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.8" },
+    { name = "brutils", specifier = ">=2.2" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-cov", specifier = ">=6.0" },

@@ -1,6 +1,6 @@
 # postech-sw-arch-p3-lambda — Autenticação por CPF (PytStop)
 
-Function serverless de autenticação da fase 3 do Tech Challenge (PytStop, oficina mecânica). O cliente informa o CPF; a function valida o formato, verifica existência e status na base do app e emite um JWT compatível com o app principal ([postech-sw-arch-p3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3)).
+Function serverless de autenticação da fase 3 do Tech Challenge (PytStop, oficina mecânica). O cliente informa o CPF; a function valida os dígitos verificadores (módulo 11), verifica existência e status na base do app e emite um JWT compatível com o app principal ([postech-sw-arch-p3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3)).
 
 Decisões de arquitetura: ADRs 026–029 no repo principal (`postech-sw-arch-p3/docs/arquitetura/adr/fase3/`).
 
@@ -8,7 +8,7 @@ Decisões de arquitetura: ADRs 026–029 no repo principal (`postech-sw-arch-p3/
 
 - **Python 3.13** (runtime `python3.13` da AWS Lambda) com [uv](https://docs.astral.sh/uv/)
 - **AWS Lambda** + **API Gateway HTTP API** (rota `POST /auth` + Lambda authorizer nas rotas protegidas)
-- **PyJWT** (HS256, mesmos claims do app), **psycopg** (PostgreSQL), **brutils** (validação de CPF, ADR-010)
+- **PyJWT** (HS256, mesmos claims do app), **psycopg** (PostgreSQL); a validação de CPF é própria (`src/autenticacao_cpf/cpf.py`, módulo 11), sem dependência de biblioteca no pacote da function
 - **Terraform** (deploy real — a IaC da function e do gateway vive NESTE repo)
 - **AWS SAM CLI** (apenas emulação local, ADR-029)
 - Qualidade: ruff, mypy (strict), bandit, pytest com cobertura ≥ 95%, testcontainers
@@ -31,10 +31,24 @@ flowchart LR
 
 Compatibilidade com o app (replicada bit a bit, com teste de paridade):
 
-- Normalização do CPF: apenas dígitos (mesma regra do VO `CPF` do app).
+- Normalização do CPF: apenas dígitos ASCII `0-9` (mesma regra do VO `CPF` do app).
+- Validação do CPF: módulo 11 antes de qualquer acesso ao banco (ver abaixo); o teste de paridade compara o validador com o `brutils` que o app usa, em ~100 mil documentos.
 - Busca: `documento_hash = HMAC-SHA256(key=sha256(ENCRYPTION_KEY), msg=cpf_normalizado)` na tabela `clientes`.
 - JWT: claims `sub`, `email`, `papel="cliente"`, `type="access"`, `jti`, `iat`, `exp`, assinado com o mesmo `JWT_SECRET` — validado sem mudança pelo app.
 - Anti-enumeração: cliente inexistente e inativo recebem a mesma resposta `401`.
+
+### Fluxo do `POST /auth` e validação do CPF
+
+| Passo | O que acontece | Resposta se falhar |
+|---|---|---|
+| 1 | Extrai `cpf` do corpo JSON (aceita base64 do API Gateway) | `400` corpo inválido |
+| 2 | Normaliza: descarta tudo que não é dígito ASCII | — |
+| 3 | **Valida o CPF por módulo 11** (`cpf.cpf_valido`): 11 dígitos, não é sequência repetida (`111.111.111-11`), 1º e 2º dígitos verificadores corretos | `400` CPF inválido, **sem consultar o banco** |
+| 4 | Calcula `documento_hash` (HMAC-SHA256) e consulta `clientes` | — |
+| 5 | Cliente inexistente ou inativo | `401` idêntico nos dois casos (anti-enumeração, RN-022) |
+| 6 | Emite o JWT com expiração (`exp`) | `200` |
+
+O módulo 11 usa pesos decrescentes de `n + 1` até 2 sobre os dígitos anteriores; o dígito é `0` quando o resto da soma por 11 é menor que 2 e `11 - resto` nos demais casos. Os testes (`tests/test_cpf.py`) cobrem CPFs válidos (inclusive com zeros à esquerda), cada dígito verificador errado isoladamente, as dez sequências repetidas, tamanhos errados, máscara, dígitos de outros alfabetos e a paridade com o `brutils`. O teste do handler garante que um CPF inválido não chega ao banco (`buscar_cliente_por_hash` não é chamado).
 
 ## Rodando local
 
@@ -102,7 +116,7 @@ O CD (`.github/workflows/cd.yml`) roda `make check` antes do deploy e aplica o m
 
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/auth` | `{"cpf": "..."}` → `200 {access_token, token_type, expires_in}` \| `400` CPF malformado \| `401` credenciais inválidas |
+| POST | `/auth` | `{"cpf": "..."}` → `200 {access_token, token_type, expires_in}` \| `400` corpo ou CPF inválido (dígitos verificadores, antes do banco) \| `401` credenciais inválidas |
 | GET | `/api/v1/minhas-ordens` | Lista as ordens do cliente autenticado; proxy HTTP para o app no EKS, protegido pelo authorizer |
 | GET | `/api/v1/minhas-ordens/{ordem_id}` | Consulta uma ordem pertencente ao cliente; retorna `404` para ordem de outro cliente |
 

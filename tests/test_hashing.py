@@ -9,6 +9,7 @@ import pytest
 from src.autenticacao_cpf import hashing
 
 CPF_VALIDO = "52998224725"
+ARABE_INDICO = "".join(chr(0x0660 + int(d)) for d in CPF_VALIDO)
 
 
 def test_normalizar_remove_mascara() -> None:
@@ -18,6 +19,14 @@ def test_normalizar_remove_mascara() -> None:
 def test_normalizar_descarta_tudo_que_nao_e_digito() -> None:
     assert hashing.normalizar_documento(" 529a982b247/25 ") == CPF_VALIDO
     assert hashing.normalizar_documento("abc") == ""
+
+
+def test_normalizar_mantem_apenas_digitos_ascii() -> None:
+    """Paridade com o app: digitos de outros alfabetos nao viram parte do hash."""
+    assert hashing.normalizar_documento(ARABE_INDICO) == ""
+    assert (
+        hashing.normalizar_documento(f"529.982.247-25{ARABE_INDICO[:1]}") == CPF_VALIDO
+    )
 
 
 def test_paridade_com_encryption_service_do_app() -> None:

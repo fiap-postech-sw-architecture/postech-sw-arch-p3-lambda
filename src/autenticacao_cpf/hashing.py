@@ -1,7 +1,7 @@
 """Normalizacao de documento e hash deterministico, em paridade com o app.
 
 Replica EXATAMENTE o app principal (postech-sw-arch-p3):
-- normalizacao: descarta tudo que nao e digito
+- normalizacao: descarta tudo que nao e digito ASCII (0-9)
   (``src/cliente_veiculo/dominio/documento.py``);
 - hash: HMAC-SHA256 com chave ``sha256(ENCRYPTION_KEY.encode()).digest()``
   (``src/compartilhado/infraestrutura/encryption.py::hash_deterministic``).
@@ -17,14 +17,17 @@ import re
 
 from src.autenticacao_cpf import env_obrigatoria
 
-_NAO_DIGITO = re.compile(r"\D")
+_NAO_DIGITO = re.compile(r"\D", re.ASCII)
 
 # Derivada no cold start: ENCRYPTION_KEY ausente aborta o boot (sem fallback).
 _HMAC_KEY = hashlib.sha256(env_obrigatoria("ENCRYPTION_KEY").encode()).digest()
 
 
 def normalizar_documento(documento: str) -> str:
-    """Remove mascara: mantem apenas digitos (mesma regra do VO CPF do app)."""
+    """Remove mascara: mantem apenas digitos ASCII (mesma regra do VO CPF do app).
+
+    So normaliza; a validacao dos digitos verificadores e de ``cpf.cpf_valido``.
+    """
     return _NAO_DIGITO.sub("", documento)
 
 
