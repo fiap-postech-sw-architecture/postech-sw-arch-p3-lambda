@@ -130,5 +130,5 @@ A `main` é protegida: só recebe mudança por pull request, com os checks `gate
 
 - [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate/test, `sam validate --lint`)
 - [x] Deploy real na AWS: [CD automático de produção](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3-lambda/actions/runs/34179043515) verde em 07/09/2026
-  - Endpoint atual: `https://rs6lbkn7p4.execute-api.us-east-1.amazonaws.com/prod`
+  - Endpoint usado na avaliação: `https://rs6lbkn7p4.execute-api.us-east-1.amazonaws.com/prod`; o ambiente AWS Academy era temporário e foi desmontado (o DNS do endpoint deixou de resolver; verificado em 06/10/2026), e o run do CD permanece como evidência
   - Smoke: `POST /auth` = 200; rota protegida = 200 com token e 401 sem token
