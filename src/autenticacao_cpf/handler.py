@@ -1,4 +1,4 @@
-"""Handler do POST /auth: valida CPF, consulta cliente e emite JWT."""
+"""Handler do POST /auth: valida CPF (modulo 11), consulta cliente e emite JWT."""
 
 from __future__ import annotations
 
@@ -7,9 +7,8 @@ import binascii
 import json
 from typing import Any
 
-from brutils.cpf import is_valid
-
 from src.autenticacao_cpf import db, hashing, logging_json, token
+from src.autenticacao_cpf.cpf import cpf_valido
 
 _logger = logging_json.configurar_logger(__name__)
 
@@ -48,7 +47,9 @@ def lambda_handler(event: dict[str, Any], _context: object) -> dict[str, Any]:
         return _resposta(400, {"detail": "Corpo invalido: esperado JSON com campo cpf"})
 
     cpf = hashing.normalizar_documento(cpf_bruto)
-    if not is_valid(cpf):
+    # Digitos verificadores ANTES de qualquer acesso ao banco: documento que nao
+    # existe por construcao nunca custa uma consulta ao RDS.
+    if not cpf_valido(cpf):
         return _resposta(400, {"detail": "CPF invalido"})
 
     cliente = db.buscar_cliente_por_hash(hashing.hash_documento(cpf))

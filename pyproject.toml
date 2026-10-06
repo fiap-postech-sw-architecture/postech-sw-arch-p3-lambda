@@ -6,11 +6,12 @@ requires-python = ">=3.13"
 dependencies = [
     "pyjwt>=2.9",
     "psycopg[binary]>=3.2",
-    "brutils>=2.2",
 ]
 
 [dependency-groups]
 dev = [
+    # So no teste de paridade do validador (tests/test_cpf.py); fora do pacote da Lambda.
+    "brutils>=2.2",
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "testcontainers[postgres]>=4.8",
