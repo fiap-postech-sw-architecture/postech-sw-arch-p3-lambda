@@ -122,6 +122,10 @@ O CD (`.github/workflows/cd.yml`) roda `make check` antes do deploy e aplica o m
 
 Documentação completa (Swagger/Postman): [collection Postman da fase 3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/postman-collection-fase3.json) (inclui esta rota `POST /auth` com a variável `gateway_url`) e [OpenAPI da API principal](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/entrega/fase3/openapi-fase3.json).
 
+## Governança da `main`
+
+A `main` é protegida: só recebe mudança por pull request, com os checks `gate` e `tf-validate` verdes, e a regra vale também para administradores (force-push e exclusão bloqueados). O merge é sempre squash, com o número do PR no título. A política completa, como conferir a proteção sem permissão de administrador e a auditoria do histórico (0 commits sem PR desde 03/09/2026) estão em [Disciplina de PR](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/governanca/disciplina-de-pr.md); a visão geral da fase 3 está no [índice da fase 3](https://github.com/fiap-postech-sw-architecture/postech-sw-arch-p3/blob/main/docs/fase3/README.md).
+
 ## Status e pendências
 
 - [x] Function + authorizer implementados, gate local verde (lint, mypy strict, bandit, cobertura ≥ 95%, terraform validate/test, `sam validate --lint`)
